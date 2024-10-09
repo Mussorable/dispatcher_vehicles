@@ -7,6 +7,17 @@ from werkzeug.exceptions import BadRequest
 from app import db
 
 
+class User(db.Model):
+    __tablename__ = 'users'
+
+    id: so.Mapped[int] = so.mapped_column(primary_key=True)
+    user_id: so.Mapped[int] = so.mapped_column(sa.Integer, unique=True)
+    username: so.Mapped[str] = so.mapped_column(sa.String(30), nullable=False)
+
+    def __repr__(self):
+        return f'<User {self.username}>'
+
+
 class Vehicle(db.Model):
     __abstract__ = True
 
@@ -14,9 +25,9 @@ class Vehicle(db.Model):
 
     @staticmethod
     def get_transport_type(transport_type):
-        if transport_type == 'trucks':
+        if transport_type == 'Truck':
             return Truck
-        if transport_type == 'trailers':
+        if transport_type == 'Trailer':
             return Trailer
         else:
             raise BadRequest('Invalid transport type')
@@ -36,7 +47,7 @@ class Truck(Vehicle):
     __tablename__ = 'trucks'
 
     id: so.Mapped[int] = so.mapped_column(primary_key=True)
-    truck_number: so.Mapped[str] = so.mapped_column(sa.String(8), index=True, unique=True)
+    vehicle_number: so.Mapped[str] = so.mapped_column(sa.String(8), index=True, unique=True)
 
     trailer: so.Mapped[Optional['Trailer']] = so.relationship('Trailer', back_populates='truck', uselist=False)
 
@@ -54,7 +65,7 @@ class Trailer(Vehicle):
     __tablename__ = 'trailers'
 
     id: so.Mapped[int] = so.mapped_column(primary_key=True)
-    trailer_number: so.Mapped[str] = so.mapped_column(sa.String(8), index=True, unique=True)
+    vehicle_number: so.Mapped[str] = so.mapped_column(sa.String(8), index=True, unique=True)
 
     truck_id: so.Mapped[Optional[int]] = so.mapped_column(sa.Integer, sa.ForeignKey('trucks.id', ondelete='SET NULL'))
     truck: so.Mapped[Optional[Truck]] = so.relationship('Truck', back_populates='trailers', uselist=False)
