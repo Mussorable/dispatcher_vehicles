@@ -1,73 +1,57 @@
 import json
-import sqlalchemy as sa
+import threading
+
+import logging
 
 from confluent_kafka import Consumer
 
-from flask_jwt_extended import decode_token
-from flask_jwt_extended.exceptions import JWTDecodeError
-from jwt.exceptions import ExpiredSignatureError, InvalidTokenError
-
-from app import db
-from app.models import User
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger('kafka')
 
 
-def process_user_event():
-    consumer = Consumer({
-        'bootstrap.servers': 'localhost:9092',
-        'group.id': 'login_group',
-        'auto.offset.reset': 'earliest',
-    })
+class ConsumerThread(threading.Thread):
+    def __init__(self, topic, app):
+        threading.Thread.__init__(self)
 
-    consumer.subscribe(['user-tokens'])
+        self.app = app
+        self.consumer = Consumer({
+            'bootstrap.servers': 'localhost:9092',
+            'group.id': 'login_group',
+            'auto.offset.reset': 'earliest',
+        })
+        self.consumer.subscribe([topic])
+        self._running = True
 
-    while True:
-        msg = consumer.poll(timeout_ms=1000)
+    def run(self):
+        logger.info("Starting consumer thread...")
+        while self._running:
+            msg = self.consumer.poll(timeout=5.0)
 
-        if msg is None:
-            continue
-        if msg.error():
-            print(f"Consumer error: {msg.error()}")
-            continue
+            if msg is None:
+                logger.info("No messages received")
+                continue
+            if msg.error:
+                logger.error(f'Consumer error: {msg.error}')
+                continue
 
-        user_info = json.loads(msg.value().decode('utf-8'))
+            data_info = json.loads(msg.value.decode('utf-8'))
+            with self.app.app_context():
+                self.process_message(data_info)
 
-        event = user_info['event']
+        logger.info("Stopping consumer thread...")
+        self.consumer.close()
 
-        if event == 'login':
-            # Decode token and get the information from db
-            access_token = user_info['access_token']
-            if not access_token:
-                return {'error': 'Access token is missing'}
+    @staticmethod
+    def process_message(data_info):
+        event = data_info['event']
+        access_token = data_info['access_token']
 
-            verification_result = verify_access_token(access_token)
-            if 'error' in verification_result:
-                return verification_result
+        if not access_token:
+            logger.error(f'Access token is missing')
+            return
 
-            decoded_token = verification_result
-            user_id = decoded_token['user_id']
-            username = decoded_token['username']
-        elif event == 'register':
-            # Add new user to db if not existed yet
-            user_id = user_info['user_id']
-            username = user_info['username']
+        if event == 'register':
+            logger.info('Register event')
 
-            create_user_record(user_id, username)
-
-
-def verify_access_token(access_token):
-    try:
-        decoded_token = decode_token(access_token)
-        return decoded_token
-    except ExpiredSignatureError:
-        return {'error': 'Token has expired'}
-    except (InvalidTokenError, JWTDecodeError):
-        return {'error': 'Invalid token'}
-
-
-def create_user_record(user_id, username):
-    user = db.session.scalar(sa.select(User).where(User.user_id == user_id))
-
-    if not user:
-        user = User(user_id=user_id, username=username)
-        db.session.add(user)
-        db.session.commit()
+    def stop(self):
+        self._running = False
