@@ -29,16 +29,12 @@ class ConsumerThread(threading.Thread):
             msg = self.consumer.poll(timeout=5.0)
 
             if msg is None:
-                logger.info("No messages received")
                 continue
-            # if msg.error():
-            #     logger.error(f'Consumer error: {msg.error().str()}')
-            #     continue
-            else:
-                logger.info(f'Received message: {msg.value().decode("utf-8")}')
+            if msg.error() is not None:
+                logger.error(f'Consumer error: {msg.error().str()}')
+                continue
 
             try:
-                logger.info(f'Message value: {msg.value()}')
                 data_info = json.loads(msg.value().decode('utf-8'))
                 logger.info(f'Parsed message: {data_info}')
                 with self.app.app_context():
