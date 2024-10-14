@@ -2,7 +2,6 @@ import sqlalchemy as sa
 import sqlalchemy.orm as so
 
 from typing import Optional
-from werkzeug.exceptions import BadRequest
 
 from app import db
 
@@ -17,6 +16,13 @@ class User(db.Model):
     def __repr__(self):
         return f'<User {self.username}>'
 
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'user_id': self.user_id,
+            'username': self.username
+        }
+
 
 class Vehicle(db.Model):
     __abstract__ = True
@@ -30,7 +36,7 @@ class Vehicle(db.Model):
         if transport_type == 'Trailer':
             return Trailer
         else:
-            raise BadRequest('Invalid transport type')
+            return None
 
     @staticmethod
     def get_lists_of_vehicles():
@@ -68,7 +74,7 @@ class Trailer(Vehicle):
     vehicle_number: so.Mapped[str] = so.mapped_column(sa.String(8), index=True, unique=True)
 
     truck_id: so.Mapped[Optional[int]] = so.mapped_column(sa.Integer, sa.ForeignKey('trucks.id', ondelete='SET NULL'))
-    truck: so.Mapped[Optional[Truck]] = so.relationship('Truck', back_populates='trailers', uselist=False)
+    truck: so.Mapped[Optional[Truck]] = so.relationship('Truck', back_populates='trailer', uselist=False)
 
     def __repr__(self):
         return f'Trailer {self.trailer_number}'
