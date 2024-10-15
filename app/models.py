@@ -48,6 +48,12 @@ class Vehicle(db.Model):
 
         return truck_list, trailer_list
 
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'vehicle_number': self.vehicle_number,
+        }
+
 
 class Truck(Vehicle):
     __tablename__ = 'trucks'
@@ -58,13 +64,7 @@ class Truck(Vehicle):
     trailer: so.Mapped[Optional['Trailer']] = so.relationship('Trailer', back_populates='truck', uselist=False)
 
     def __repr__(self):
-        return f'Truck {self.truck_number}'
-
-    def to_dict(self):
-        return {
-            'id': self.id,
-            'truck_number': self.truck_number,
-        }
+        return f'Truck {self.vehicle_number}'
 
 
 class Trailer(Vehicle):
@@ -77,10 +77,4 @@ class Trailer(Vehicle):
     truck: so.Mapped[Optional[Truck]] = so.relationship('Truck', back_populates='trailer', uselist=False)
 
     def __repr__(self):
-        return f'Trailer {self.trailer_number}'
-
-    def to_dict(self):
-        return {
-            'id': self.id,
-            'trailer_number': self.trailer_number,
-        }
+        return f'Trailer {self.vehicle_number}'
